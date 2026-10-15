@@ -21,15 +21,24 @@ Standalone Linux kernel driver and DKMS package for the **MediaTek MT7902 Wirele
 
 ---
 
-## 🚀 Quick Install (Any Linux Distro)
+## 🚀 Quick 1-Command Install (Any Linux Distro)
 
-Run the universal installer which automatically detects your package manager, installs prerequisites, deploys the MCU firmware, builds the driver, and registers it with DKMS:
+Paste this single command into your Linux terminal:
 
 ```bash
-git clone https://github.com/asmitsharma-alt/mt7902-linux-driver.git
-cd mt7902-linux-driver
-chmod +x install.sh uninstall.sh
-sudo ./install.sh
+curl -sSL https://raw.githubusercontent.com/asmitsharma-alt/mt7902-linux-driver/master/install.sh | sudo bash
+```
+
+*Or using `wget`:*
+
+```bash
+wget -qO- https://raw.githubusercontent.com/asmitsharma-alt/mt7902-linux-driver/master/install.sh | sudo bash
+```
+
+*Or by cloning:*
+
+```bash
+git clone https://github.com/asmitsharma-alt/mt7902-linux-driver.git && cd mt7902-linux-driver && sudo ./install.sh
 ```
 
 ---

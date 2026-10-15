@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Universal MediaTek MT7902 Linux Driver Installer
-# Supports: Ubuntu, Debian, Linux Mint, Fedora, RHEL, CentOS, Arch Linux,
-#           Manjaro, openSUSE, CachyOS, Pop!_OS
+# Supports direct execution OR piping via:
+#   curl -sSL https://raw.githubusercontent.com/asmitsharma-alt/mt7902-linux-driver/master/install.sh | sudo bash
 # ==============================================================================
 
 set -e
@@ -70,7 +70,19 @@ install_deps() {
 install_deps
 
 # ------------------------------------------------------------------------------
-# 2. Deploy Official Firmware
+# 2. Self-Bootstrap Repository (If executed via curl/wget pipe)
+# ------------------------------------------------------------------------------
+REPO_URL="https://github.com/asmitsharma-alt/mt7902-linux-driver.git"
+
+if [ ! -f "Makefile" ] || [ ! -d "firmware" ]; then
+    echo -e "${YELLOW}[*] Running from pipe. Downloading full driver repository...${NC}"
+    WORK_DIR=$(mktemp -d -t mt7902-install-XXXXXX)
+    git clone --depth 1 "${REPO_URL}" "${WORK_DIR}"
+    cd "${WORK_DIR}"
+fi
+
+# ------------------------------------------------------------------------------
+# 3. Deploy Official Firmware
 # ------------------------------------------------------------------------------
 echo -e "${GREEN}[*] Deploying MediaTek MT7902 Firmware to /lib/firmware/mediatek/...${NC}"
 mkdir -p /lib/firmware/mediatek
@@ -80,19 +92,17 @@ if [ -d "firmware" ]; then
     cp -v firmware/WIFI_RAM_CODE_MT7902_1.bin /lib/firmware/mediatek/ 2>/dev/null || true
 fi
 
-# Set permissions
 chmod 644 /lib/firmware/mediatek/WIFI_*MT7902* 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
-# 3. Kernel Compatibility & Driver Build
+# 4. Kernel Compatibility & Driver Build
 # ------------------------------------------------------------------------------
 echo -e "${GREEN}[*] Compiling Driver Module for Kernel ${KERNEL_VER}...${NC}"
 
-# Check if upstream mt76 has native mt7902 support in this kernel
 UPSTREAM_SUPPORTS=$(modinfo -F alias mt7921e 2>/dev/null | grep -i "14C3.*7902" || true)
 
 if [ -n "$UPSTREAM_SUPPORTS" ]; then
-    echo -e "${GREEN}[+] Great news! Your kernel already has native in-tree support for MT7902.${NC}"
+    echo -e "${GREEN}[+] Your kernel already has native in-tree support for MT7902.${NC}"
     echo -e "${GREEN}[*] Loading native module...${NC}"
     modprobe -r mt7921e 2>/dev/null || true
     modprobe mt7921e
@@ -122,7 +132,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 4. Verification & Status Report
+# 5. Verification & Status Report
 # ------------------------------------------------------------------------------
 echo -e "${BLUE}=====================================================${NC}"
 echo -e "${GREEN}   Installation Complete! Checking Wireless Interfaces:${NC}"
