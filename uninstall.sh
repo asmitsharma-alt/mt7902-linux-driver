@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Uninstaller for MediaTek MT7902 Linux Driver
+# Uninstaller for MediaTek MT7902 Linux Wi-Fi & Bluetooth Driver
 # ==============================================================================
 
 set -e
@@ -10,10 +10,14 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo "Removing MT7902 driver..."
+echo "Removing MT7902 Wi-Fi & Bluetooth driver configuration..."
 
 # Unload module
 modprobe -r mt7902 2>/dev/null || true
+
+# Remove Bluetooth udev rule
+rm -f /etc/udev/rules.d/99-mt7902-bluetooth.rules
+udevadm control --reload-rules 2>/dev/null || true
 
 # Remove from DKMS
 if command -v dkms >/dev/null 2>&1; then
@@ -25,4 +29,4 @@ fi
 rm -f /lib/modules/$(uname -r)/kernel/drivers/net/wireless/mediatek/mt7902.ko
 depmod -a
 
-echo "Driver uninstalled successfully."
+echo "Driver and Bluetooth rules uninstalled successfully."

@@ -13,11 +13,12 @@ Standalone Linux kernel driver and DKMS package for the **MediaTek MT7902 Wirele
 | Specification | Value |
 | :--- | :--- |
 | **Device Model** | MediaTek Wi-Fi 6E MT7902 Wireless LAN Card |
-| **PCI Vendor ID** | `0x14C3` (MediaTek) |
-| **PCI Device ID** | `0x7902` (`PCI\VEN_14C3&DEV_7902`) |
-| **Supported Bands** | 2.4 GHz, 5 GHz, 6 GHz (Wi-Fi 6E) |
+| **Wi-Fi Hardware ID (PCIe)** | `PCI\VEN_14C3&DEV_7902` (`14c3:7902`) |
+| **Bluetooth Hardware ID (USB)** | `USB\VID_13D3&PID_3579` / `0489:e0f5` (Bluetooth 5.3) |
+| **Wi-Fi Bands** | 2.4 GHz, 5 GHz, 6 GHz (Wi-Fi 6E) |
 | **Channel Widths** | 20 MHz, 40 MHz, 80 MHz, 160 MHz |
-| **Standards** | 802.11a/b/g/n/ac/ax |
+| **Wi-Fi Standards** | 802.11a/b/g/n/ac/ax |
+| **Included Firmware** | `WIFI_MT7902_patch_mcu_1_1_hdr.bin`<br>`WIFI_RAM_CODE_MT7902_1.bin`<br>`BT_RAM_CODE_MT7902_1_1_hdr.bin` |
 
 ---
 

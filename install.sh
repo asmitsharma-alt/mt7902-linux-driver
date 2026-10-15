@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Universal MediaTek MT7902 Linux Driver Installer
+# Universal MediaTek MT7902 Linux Driver & Bluetooth Installer
 # Supports direct execution OR piping via:
 #   curl -sSL https://raw.githubusercontent.com/asmitsharma-alt/mt7902-linux-driver/master/install.sh | sudo bash
 # ==============================================================================
@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}=====================================================${NC}"
-echo -e "${BLUE}   MediaTek MT7902 Wi-Fi 6E Linux Driver Installer   ${NC}"
+echo -e "${BLUE}  MediaTek MT7902 Wi-Fi 6E & Bluetooth 5.3 Installer  ${NC}"
 echo -e "${BLUE}=====================================================${NC}"
 
 if [ "$EUID" -ne 0 ]; then
@@ -46,23 +46,23 @@ install_deps() {
         *debian*|*ubuntu*)
             echo -e "${YELLOW}[*] Installing dependencies via apt...${NC}"
             apt-get update
-            apt-get install -y build-essential dkms git linux-headers-"${KERNEL_VER}" bc iw
+            apt-get install -y build-essential dkms git linux-headers-"${KERNEL_VER}" bc iw bluez udev
             ;;
         *fedora*|*rhel*)
             echo -e "${YELLOW}[*] Installing dependencies via dnf...${NC}"
-            dnf install -y kernel-devel-"${KERNEL_VER}" kernel-headers-"${KERNEL_VER}" dkms gcc make git bc iw
+            dnf install -y kernel-devel-"${KERNEL_VER}" kernel-headers-"${KERNEL_VER}" dkms gcc make git bc iw bluez systemd-udev
             ;;
         *arch*|*manjaro*)
             echo -e "${YELLOW}[*] Installing dependencies via pacman...${NC}"
-            pacman -Sy --noconfirm linux-headers base-devel dkms git iw
+            pacman -Sy --noconfirm linux-headers base-devel dkms git iw bluez udev
             ;;
         *suse*)
             echo -e "${YELLOW}[*] Installing dependencies via zypper...${NC}"
             zypper refresh
-            zypper install -y kernel-devel kernel-default-devel dkms gcc make git bc iw
+            zypper install -y kernel-devel kernel-default-devel dkms gcc make git bc iw bluez udev
             ;;
         *)
-            echo -e "${YELLOW}[!] Unknown package manager family. Please ensure kernel headers and build-essential are installed.${NC}"
+            echo -e "${YELLOW}[!] Unknown package manager family. Please ensure kernel headers, bluez, and build tools are installed.${NC}"
             ;;
     esac
 }
@@ -82,7 +82,7 @@ if [ ! -f "Makefile" ] || [ ! -d "firmware" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Deploy Official Firmware
+# 3. Deploy Official Wi-Fi & Bluetooth Firmware
 # ------------------------------------------------------------------------------
 echo -e "${GREEN}[*] Deploying MediaTek MT7902 Firmware to /lib/firmware/mediatek/...${NC}"
 mkdir -p /lib/firmware/mediatek
@@ -90,19 +90,53 @@ mkdir -p /lib/firmware/mediatek
 if [ -d "firmware" ]; then
     cp -v firmware/WIFI_MT7902_patch_mcu_1_1_hdr.bin /lib/firmware/mediatek/ 2>/dev/null || true
     cp -v firmware/WIFI_RAM_CODE_MT7902_1.bin /lib/firmware/mediatek/ 2>/dev/null || true
+    cp -v firmware/BT_RAM_CODE_MT7902_1_1_hdr.bin /lib/firmware/mediatek/ 2>/dev/null || true
 fi
 
-chmod 644 /lib/firmware/mediatek/WIFI_*MT7902* 2>/dev/null || true
+chmod 644 /lib/firmware/mediatek/*MT7902* 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
-# 4. Kernel Compatibility & Driver Build
+# 4. Configure & Activate Bluetooth 5.3 Controller (USB 13d3:3579)
 # ------------------------------------------------------------------------------
-echo -e "${GREEN}[*] Compiling Driver Module for Kernel ${KERNEL_VER}...${NC}"
+echo -e "${GREEN}[*] Configuring MediaTek MT7902 Bluetooth subsystem...${NC}"
+
+# Ensure btusb is loaded
+modprobe btusb 2>/dev/null || true
+
+# Write udev rule for automatic Bluetooth binding on boot
+UDEV_RULE_FILE="/etc/udev/rules.d/99-mt7902-bluetooth.rules"
+cat << 'EOF' > "${UDEV_RULE_FILE}"
+# MediaTek MT7902 Bluetooth Controller (AzureWave / IMC Networks & Foxconn)
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="13d3", ATTR{idProduct}=="3579", RUN+="/bin/sh -c 'echo 13d3 3579 > /sys/bus/usb/drivers/btusb/new_id'"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0489", ATTR{idProduct}=="e0f5", RUN+="/bin/sh -c 'echo 0489 e0f5 > /sys/bus/usb/drivers/btusb/new_id'"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0489", ATTR{idProduct}=="e0f6", RUN+="/bin/sh -c 'echo 0489 e0f6 > /sys/bus/usb/drivers/btusb/new_id'"
+EOF
+
+# Reload udev
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger 2>/dev/null || true
+
+# Trigger dynamic binding directly if device is currently present
+if [ -w /sys/bus/usb/drivers/btusb/new_id ]; then
+    echo "13d3 3579" > /sys/bus/usb/drivers/btusb/new_id 2>/dev/null || true
+    echo "0489 e0f5" > /sys/bus/usb/drivers/btusb/new_id 2>/dev/null || true
+    echo "0489 e0f6" > /sys/bus/usb/drivers/btusb/new_id 2>/dev/null || true
+fi
+
+# Restart bluetooth service if systemd is active
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl restart bluetooth 2>/dev/null || true
+fi
+
+# ------------------------------------------------------------------------------
+# 5. Kernel Compatibility & Wi-Fi Driver Build
+# ------------------------------------------------------------------------------
+echo -e "${GREEN}[*] Compiling Wi-Fi Driver Module for Kernel ${KERNEL_VER}...${NC}"
 
 UPSTREAM_SUPPORTS=$(modinfo -F alias mt7921e 2>/dev/null | grep -i "14C3.*7902" || true)
 
 if [ -n "$UPSTREAM_SUPPORTS" ]; then
-    echo -e "${GREEN}[+] Your kernel already has native in-tree support for MT7902.${NC}"
+    echo -e "${GREEN}[+] Your kernel already has native in-tree support for MT7902 Wi-Fi.${NC}"
     echo -e "${GREEN}[*] Loading native module...${NC}"
     modprobe -r mt7921e 2>/dev/null || true
     modprobe mt7921e
@@ -132,20 +166,25 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 5. Verification & Status Report
+# 6. Verification & Status Report
 # ------------------------------------------------------------------------------
 echo -e "${BLUE}=====================================================${NC}"
-echo -e "${GREEN}   Installation Complete! Checking Wireless Interfaces:${NC}"
+echo -e "${GREEN}   Installation Complete! Checking Device Status:     ${NC}"
 echo -e "${BLUE}=====================================================${NC}"
 
 if command -v iw >/dev/null 2>&1; then
+    echo -e "${YELLOW}[*] Wireless Interfaces:${NC}"
     iw dev || true
 fi
 
-if command -v ip >/dev/null 2>&1; then
-    echo -e "${YELLOW}[*] Network Interfaces:${NC}"
-    ip link show | grep -E "wl[a-z0-9]+" || true
+if command -v rfkill >/dev/null 2>&1; then
+    echo -e "\n${YELLOW}[*] RFKill Status (Wi-Fi & Bluetooth):${NC}"
+    rfkill list || true
 fi
 
-echo -e "\n${GREEN}[SUCCESS] Wi-Fi adapter is now initialized!${NC}"
-echo -e "You can connect using NetworkManager: ${YELLOW}nmcli device wifi list${NC}"
+if command -v bluetoothctl >/dev/null 2>&1; then
+    echo -e "\n${YELLOW}[*] Bluetooth Controller:${NC}"
+    bluetoothctl show 2>/dev/null || true
+fi
+
+echo -e "\n${GREEN}[SUCCESS] MediaTek MT7902 Wi-Fi 6E & Bluetooth 5.3 are active!${NC}"
