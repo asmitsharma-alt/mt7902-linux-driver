@@ -1,0 +1,18 @@
+# Build artifacts
+*.o
+*.ko
+*.mod.c
+*.mod
+*.o.cmd
+*.ko.cmd
+*.mod.cmd
+.tmp_versions
+modules.order
+Module.symvers
+.cache.mk
+*.dwo
+*.su
+
+# OS files
+.DS_Store
+Thumbs.db
